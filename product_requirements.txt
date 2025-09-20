@@ -1,0 +1,122 @@
+This project is designed for Interns at Grip Invest to simulate a mini investment platform. It is a 
+full-stack assignment that includes Backend, Frontend, and DevOps components. Interns will 
+build APIs for authentication, product management, investments, and transaction logging; 
+develop a frontend that consumes these APIs; and set up local containerized deployment using 
+Docker. 
+You are free to use as much AI driven development as possible to expedite development speed, 
+test scenarios handling, etc. There is no restriction on UI development. Use your imagination on 
+what would give a better experience to the users and develop accordingly. The UI must be less 
+complex, and more user friendly. 
+When submitting your application, do not forget to mention how you used AI and how it helped 
+you make your project better.
+
+1. Backend Requirements 
+A. User Authentication 
+1. Predefined schema for users table. 
+2. Implement signup, login, JWT-based authentication. 
+3. Add password reset (OTP/email-based). 
+4. AI integration: Suggest password strength improvements. 
+B. Investment Products CRUD 
+1. Predefined schema for investment products table. 
+2. Create, Update, Delete products (admin only). 
+3. Fetch product list for users. 
+4. AI integration: 
+a. Auto-generate product descriptions from structured fields. 
+b. Suggest products based on best returns and user risk appetite. 
+C. Investments 
+1. Predefined schema for investments table. 
+2. Users can invest in predefined products. 
+3. Fetch user portfolio (investments + returns). 
+4. Apply business rules (cannot invest more than balance, etc.). 
+5. AI integration: Generate portfolio insights (e.g., risk distribution). 
+D. Transaction Logger 
+1. Predefined schema for transaction_logs table. 
+2. Log every API call with endpoint, method, status code, error message. 
+3. Fetch logs by user ID or email. 
+4. Summarize errors per user using AI. 
+E. Test Cases 
+1. Make sure there are unit test cases written for all the modules and the test coverage is 
+at least 75% 
+2. The test cases must be written in Jest.
+
+2. Frontend Requirements 
+1. Landing Page: Welcome screen with Login/Signup options. 
+2. Authentication: Signup/Login with JWT, password strength meter (AI feedback). 
+3. Dashboard: Snapshot of portfolio value, investments count, AI insights card. 
+4. Products: List & detail pages, filters by type/yield/risk, AI recommendation button. 
+5. Investments: Form to invest, portfolio view with charts & AI summaries. 
+6. Transaction Logs: Logs table with filters and AI error summarizer. 
+7. Profile: User details, update risk appetite, AI recommendations based on profile. 
+8. Test Cases: At least 75% unit test coverage using Jest/RTL. 
+Frontend Tech Stack Expectations: React.js/Next.js, TailwindCSS or Material UI, 
+Recharts/Chart.js for graphs, JWT auth handling, responsive design. 
+
+3. DevOps Requirements 
+1. Containerization: Create Dockerfiles for backend and frontend, and a docker
+compose.yml to run backend + frontend + MySQL locally. 
+2. Health Checks: Backend must expose a /health endpoint showing service and DB status. 
+3. Logs: Ensure useful logs are printed and viewable via docker logs. 
+4. Documentation: Provide README.md with instructions on running containers, seeding 
+DB, and accessing services. 
+5. Deliverables: Dockerfiles, docker-compose.yml, README.md.
+
+4. Deliverables 
+1. Working backend APIs with Postman collection. 
+2. Fully functional frontend integrated with backend APIs. 
+3. SQL schema + seed data. 
+4. Logs and monitoring endpoints. 
+5. Docker setup (backend, frontend, MySQL). 
+6. Documentation (README + AI usage notes).
+
+5. Database Structure
+Predefined Schemas (MySQL) 
+Users Table 
+CREATE TABLE users ( 
+id CHAR(36) PRIMARY KEY DEFAULT (UUID()), 
+first_name VARCHAR(100) NOT NULL, 
+last_name VARCHAR(100), 
+email VARCHAR(255) UNIQUE NOT NULL, 
+password_hash VARCHAR(255) NOT NULL, 
+risk_appetite ENUM('low','moderate','high') DEFAULT 'moderate', 
+created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP 
+); 
+Investment Products Table 
+CREATE TABLE investment_products ( 
+id CHAR(36) PRIMARY KEY DEFAULT (UUID()), 
+name VARCHAR(255) NOT NULL, 
+investment_type ENUM('bond','fd','mf','etf','other') NOT NULL, 
+tenure_months INT NOT NULL, 
+annual_yield DECIMAL(5,2) NOT NULL, 
+risk_level ENUM('low','moderate','high') NOT NULL, 
+min_investment DECIMAL(12,2) DEFAULT 1000.00, 
+max_investment DECIMAL(12,2), 
+description TEXT, 
+created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP 
+); 
+Investments Table 
+CREATE TABLE investments ( 
+id CHAR(36) PRIMARY KEY DEFAULT (UUID()), 
+user_id CHAR(36) NOT NULL, 
+product_id CHAR(36) NOT NULL, 
+amount DECIMAL(12,2) NOT NULL, 
+invested_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+status ENUM('active','matured','cancelled') DEFAULT 'active', 
+expected_return DECIMAL(12,2), 
+maturity_date DATE, 
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, 
+FOREIGN KEY (product_id) REFERENCES investment_products(id) ON DELETE CASCADE 
+); 
+Transaction Logs Table 
+CREATE TABLE transaction_logs ( 
+id BIGINT AUTO_INCREMENT PRIMARY KEY, 
+user_id CHAR(36), 
+email VARCHAR(255), 
+endpoint VARCHAR(255) NOT NULL, 
+http_method ENUM('GET','POST','PUT','DELETE') NOT NULL, 
+status_code INT NOT NULL, 
+error_message TEXT, 
+created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+FOREIGN KEY (user_id) REFERENCES users(id) 
+); 

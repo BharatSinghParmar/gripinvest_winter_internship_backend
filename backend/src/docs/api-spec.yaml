@@ -1,0 +1,1113 @@
+openapi: 3.0.3
+info:
+  title: GripInvest API
+  description: |
+    A comprehensive investment platform API that provides user authentication, 
+    product management, investment tracking, and transaction logging capabilities.
+    
+    ## Features
+    - User authentication with JWT tokens
+    - Password reset with OTP
+    - Investment product management
+    - Portfolio tracking and insights
+    - Transaction logging and analytics
+    - AI-powered recommendations
+    
+    ## Authentication
+    The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-access-token>
+    ```
+    
+    ## Rate Limiting
+    - OTP requests: 3 per 15 minutes per email/IP
+    - Auth endpoints: 10 requests per minute per IP
+    - General API: 100 requests per minute per IP
+    
+    ## Error Handling
+    All errors follow a consistent format:
+    ```json
+    {
+      "success": false,
+      "message": "Error description",
+      "errorCode": "ERROR_CODE",
+      "errors": ["Detailed error messages"]
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: GripInvest API Support
+    email: support@gripinvest.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://api.gripinvest.com/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Products
+    description: Investment product management
+  - name: Investments
+    description: User investment operations
+  - name: Logging
+    description: Transaction logging and analytics
+  - name: Health
+    description: System health and monitoring
+
+paths:
+  # Authentication Endpoints
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      description: Create a new user account with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            example:
+              first_name: "John"
+              last_name: "Doe"
+              email: "john.doe@example.com"
+              password: "SecurePass123!"
+              risk_appetite: "moderate"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "john.doe@example.com"
+              password: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+                example: refresh_token=abc123; HttpOnly; SameSite=Lax
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Get a new access token using the refresh token
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      description: Logout user and revoke refresh tokens
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user
+      description: Get information about the currently authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/password/otp:
+    post:
+      tags: [Authentication]
+      summary: Request password reset OTP
+      description: Send OTP to user's email for password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+            example:
+              email: "john.doe@example.com"
+      responses:
+        '200':
+          description: OTP sent successfully (if user exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/password/reset:
+    post:
+      tags: [Authentication]
+      summary: Reset password with OTP
+      description: Reset user password using OTP verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+            example:
+              email: "john.doe@example.com"
+              otp: "123456"
+              newPassword: "NewSecurePass123!"
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/password/strength:
+    post:
+      tags: [Authentication]
+      summary: Check password strength
+      description: Analyze password strength and get improvement suggestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordStrengthRequest'
+            example:
+              password: "WeakPass123!"
+      responses:
+        '200':
+          description: Password strength analyzed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordStrengthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Product Endpoints
+  /products:
+    get:
+      tags: [Products]
+      summary: Get investment products
+      description: Retrieve a paginated list of investment products with optional filters
+      parameters:
+        - name: investment_type
+          in: query
+          description: Filter by investment type
+          schema:
+            type: string
+            enum: [bond, fd, mf, etf, other]
+        - name: risk_level
+          in: query
+          description: Filter by risk level
+          schema:
+            type: string
+            enum: [low, moderate, high]
+        - name: min_yield
+          in: query
+          description: Minimum annual yield
+          schema:
+            type: number
+            minimum: 0
+        - name: max_yield
+          in: query
+          description: Maximum annual yield
+          schema:
+            type: number
+            minimum: 0
+        - name: min_tenure
+          in: query
+          description: Minimum tenure in months
+          schema:
+            type: integer
+            minimum: 1
+        - name: max_tenure
+          in: query
+          description: Maximum tenure in months
+          schema:
+            type: integer
+            minimum: 1
+        - name: min_investment
+          in: query
+          description: Minimum investment amount
+          schema:
+            type: number
+            minimum: 0
+        - name: max_investment
+          in: query
+          description: Maximum investment amount
+          schema:
+            type: number
+            minimum: 0
+        - name: search
+          in: query
+          description: Search term for product name or description
+          schema:
+            type: string
+            maxLength: 100
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/{id}:
+    get:
+      tags: [Products]
+      summary: Get product by ID
+      description: Retrieve a specific investment product by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/recommendations/me:
+    get:
+      tags: [Products]
+      summary: Get personalized product recommendations
+      description: Get AI-powered product recommendations based on user profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: risk_appetite
+          in: query
+          description: Override user's risk appetite
+          schema:
+            type: string
+            enum: [low, moderate, high]
+        - name: investment_amount
+          in: query
+          description: Investment amount for recommendations
+          schema:
+            type: number
+            minimum: 0
+        - name: preferred_tenure
+          in: query
+          description: Preferred investment tenure in months
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 360
+      responses:
+        '200':
+          description: Recommendations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductRecommendationsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Investment Endpoints
+  /investments:
+    post:
+      tags: [Investments]
+      summary: Create new investment
+      description: Create a new investment for the authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentRequest'
+            example:
+              product_id: "123e4567-e89b-12d3-a456-426614174000"
+              amount: 10000
+      responses:
+        '201':
+          description: Investment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /investments/me:
+    get:
+      tags: [Investments]
+      summary: Get user investments
+      description: Retrieve paginated list of user's investments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by investment status
+          schema:
+            type: string
+            enum: [active, completed, cancelled]
+        - name: from_date
+          in: query
+          description: Filter investments from this date
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          description: Filter investments to this date
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Investments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /investments/portfolio/insights:
+    get:
+      tags: [Investments]
+      summary: Get portfolio insights
+      description: Get comprehensive portfolio analysis and insights
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          description: Analysis period
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: 30d
+      responses:
+        '200':
+          description: Portfolio insights retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioInsightsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Health Endpoints
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Check the health status of the API
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token
+
+  schemas:
+    # Authentication Schemas
+    SignupRequest:
+      type: object
+      required:
+        - first_name
+        - email
+        - password
+        - risk_appetite
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User's first name
+        last_name:
+          type: string
+          maxLength: 100
+          description: User's last name
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: User's email address
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)'
+          description: User's password (must contain uppercase, lowercase, and number)
+        risk_appetite:
+          type: string
+          enum: [low, moderate, high]
+          default: moderate
+          description: User's risk tolerance level
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          description: User's password
+
+    PasswordResetRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+
+    PasswordResetConfirmRequest:
+      type: object
+      required:
+        - email
+        - otp
+        - newPassword
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        otp:
+          type: string
+          pattern: '^\d{6}$'
+          description: 6-digit OTP code
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 100
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)'
+          description: New password
+
+    PasswordStrengthRequest:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          description: Password to analyze
+
+    # Response Schemas
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "User registered successfully"
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              description: JWT access token
+            user:
+              $ref: '#/components/schemas/User'
+
+    TokenRefreshResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Token refreshed successfully"
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              description: New JWT access token
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Current user"
+        data:
+          $ref: '#/components/schemas/User'
+
+    PasswordStrengthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Password strength analyzed"
+        data:
+          type: object
+          properties:
+            score:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: Password strength score
+            level:
+              type: string
+              enum: [weak, fair, good, strong, very-strong]
+              description: Password strength level
+            suggestions:
+              type: array
+              items:
+                type: string
+              description: Improvement suggestions
+            requirements:
+              type: object
+              properties:
+                length:
+                  type: boolean
+                uppercase:
+                  type: boolean
+                lowercase:
+                  type: boolean
+                numbers:
+                  type: boolean
+                symbols:
+                  type: boolean
+                noCommonPatterns:
+                  type: boolean
+
+    # Product Schemas
+    ProductsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Products retrieved successfully"
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    ProductResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Product retrieved successfully"
+        data:
+          $ref: '#/components/schemas/Product'
+
+    ProductRecommendationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Recommendations retrieved successfully"
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+
+    # Investment Schemas
+    CreateInvestmentRequest:
+      type: object
+      required:
+        - product_id
+        - amount
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          description: ID of the investment product
+        amount:
+          type: number
+          minimum: 0
+          description: Investment amount
+
+    InvestmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Investment created successfully"
+        data:
+          $ref: '#/components/schemas/Investment'
+
+    InvestmentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Investments retrieved successfully"
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Investment'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    PortfolioInsightsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Portfolio insights retrieved successfully"
+        data:
+          type: object
+          properties:
+            totalInvested:
+              type: number
+              description: Total amount invested
+            totalValue:
+              type: number
+              description: Current total portfolio value
+            totalReturn:
+              type: number
+              description: Total return amount
+            returnPercentage:
+              type: number
+              description: Return percentage
+            activeInvestments:
+              type: integer
+              description: Number of active investments
+            riskDistribution:
+              type: object
+              properties:
+                low:
+                  type: number
+                moderate:
+                  type: number
+                high:
+                  type: number
+            topPerformers:
+              type: array
+              items:
+                type: object
+                properties:
+                  productName:
+                    type: string
+                  return:
+                    type: number
+
+    # Health Schemas
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Health check completed"
+        data:
+          type: object
+          properties:
+            service:
+              type: string
+              example: "healthy"
+            database:
+              type: string
+              example: "connected"
+            uptime:
+              type: integer
+              description: Service uptime in seconds
+            version:
+              type: string
+              example: "1.0.0"
+            timestamp:
+              type: string
+              format: date-time
+
+    # Common Schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        risk_appetite:
+          type: string
+          enum: [low, moderate, high]
+        role:
+          type: string
+          enum: [user, admin]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        investment_type:
+          type: string
+          enum: [bond, fd, mf, etf, other]
+        tenure_months:
+          type: integer
+        annual_yield:
+          type: number
+        risk_level:
+          type: string
+          enum: [low, moderate, high]
+        min_investment:
+          type: number
+        max_investment:
+          type: number
+        description:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Investment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        expected_return:
+          type: number
+        status:
+          type: string
+          enum: [active, completed, cancelled]
+        invested_at:
+          type: string
+          format: date-time
+        maturity_date:
+          type: string
+          format: date-time
+        product:
+          $ref: '#/components/schemas/Product'
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        errorCode:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Validation failed"
+            errors: ["Email is required", "Password must be at least 8 characters"]
+
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Authentication required"
+            errorCode: "AUTHENTICATION_ERROR"
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Insufficient permissions"
+            errorCode: "AUTHORIZATION_ERROR"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Resource not found"
+            errorCode: "NOT_FOUND_ERROR"
+
+    ConflictError:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "User already exists with this email"
+            errorCode: "CONFLICT_ERROR"
+
+    RateLimitError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Too many requests"
+            errorCode: "RATE_LIMIT_EXCEEDED"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Internal server error"
+            errorCode: "INTERNAL_SERVER_ERROR"

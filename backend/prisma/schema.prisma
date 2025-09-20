@@ -1,0 +1,175 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model wealth_builders {
+  id            String   @id @db.Char(36) @default(dbgenerated("(UUID())"))
+  first_name    String   @db.VarChar(100)
+  last_name     String?  @db.VarChar(100)
+  email         String   @unique @db.VarChar(255)
+  password_hash String   @db.VarChar(255)
+  risk_tolerance RiskTolerance @default(moderate)
+  role          BuilderRole @default(builder)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  wealth_entries wealth_entries[]
+  access_tokens access_tokens[]
+  activity_logs activity_logs[]
+
+  @@map("wealth_builders")
+}
+
+model financial_instruments {
+  id              String   @id @db.Char(36) @default(dbgenerated("(UUID())"))
+  name            String   @db.VarChar(255)
+  instrument_type InstrumentType
+  duration_months Int
+  annual_return   Decimal  @db.Decimal(5, 2)
+  risk_level      RiskLevel
+  min_amount      Decimal  @db.Decimal(12, 2) @default(1000.00)
+  max_amount      Decimal? @db.Decimal(12, 2)
+  description     String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  wealth_entries  wealth_entries[]
+
+  @@index([risk_level, annual_return])
+  @@index([instrument_type, duration_months])
+  @@index([name])
+  @@map("financial_instruments")
+}
+
+model wealth_entries {
+  id              String   @id @db.Char(36) @default(dbgenerated("(UUID())"))
+  builder_id      String   @db.Char(36)
+  instrument_id   String   @db.Char(36)
+  amount          Decimal  @db.Decimal(12, 2)
+  created_at      DateTime @default(now())
+  status          WealthStatus @default(active)
+  expected_return Decimal? @db.Decimal(12, 2)
+  maturity_date   DateTime?
+
+  builder   wealth_builders      @relation(fields: [builder_id], references: [id], onDelete: Cascade)
+  instrument financial_instruments @relation(fields: [instrument_id], references: [id], onDelete: Cascade)
+
+  @@index([builder_id, status])
+  @@index([created_at])
+  @@map("wealth_entries")
+}
+
+model activity_logs {
+  id                BigInt   @id @default(autoincrement())
+  builder_id        String?  @db.Char(36)
+  endpoint          String   @db.VarChar(255)
+  http_method       HttpMethod
+  status_code       Int
+  error_message     String?
+  request_duration_ms Int?
+  response_size_bytes Int?
+  user_agent        String?  @db.VarChar(500)
+  ip_address        String?  @db.VarChar(45)
+  error_code        String?  @db.VarChar(50)
+  correlation_id    String?  @db.VarChar(36)
+  created_at        DateTime @default(now())
+
+  builder wealth_builders? @relation(fields: [builder_id], references: [id], onDelete: SetNull)
+
+  @@index([builder_id, created_at])
+  @@index([status_code])
+  @@index([correlation_id])
+  @@index([error_code])
+  @@index([ip_address])
+  @@index([created_at])
+  @@map("activity_logs")
+}
+
+model access_tokens {
+  id         String   @id @default(cuid())
+  builder_id String   @db.Char(36)
+  token_hash String   @db.VarChar(255)
+  is_revoked Boolean  @default(false)
+  created_at DateTime @default(now())
+  expires_at DateTime
+
+  builder wealth_builders @relation(fields: [builder_id], references: [id], onDelete: Cascade)
+
+  @@index([builder_id, is_revoked])
+  @@index([expires_at])
+  @@map("access_tokens")
+}
+
+model security_codes {
+  id          String   @id @default(cuid())
+  email       String   @db.VarChar(255)
+  code_hash   String   @db.VarChar(255)
+  expires_at  DateTime
+  consumed_at DateTime?
+  created_at  DateTime @default(now())
+
+  @@index([email, expires_at])
+  @@map("security_codes")
+}
+
+model security_audits {
+  id            String   @id @default(cuid())
+  builder_id    String?  @db.Char(36)
+  action        String   @db.VarChar(100)
+  resource_type String   @db.VarChar(50)
+  resource_id   String?  @db.VarChar(36)
+  details       Json
+  ip_address    String?  @db.VarChar(45)
+  user_agent    String?  @db.VarChar(500)
+  created_at    DateTime @default(now())
+
+  @@index([builder_id, created_at])
+  @@index([action])
+  @@index([resource_type, resource_id])
+  @@index([created_at])
+  @@map("security_audits")
+}
+
+enum RiskTolerance { 
+  conservative 
+  moderate 
+  aggressive 
+}
+
+enum BuilderRole {
+  builder
+  administrator
+}
+
+enum InstrumentType { 
+  bonds 
+  fixed_deposits 
+  mutual_funds 
+  etfs 
+  other 
+}
+
+enum RiskLevel { 
+  low 
+  moderate 
+  high 
+}
+
+enum WealthStatus { 
+  active 
+  matured 
+  cancelled 
+}
+
+enum HttpMethod { 
+  GET 
+  POST 
+  PUT 
+  DELETE 
+}
